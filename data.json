@@ -1,0 +1,5 @@
+{
+    "reading": "早读任务。\n例如：\n1. 朗读第一单元单词。\n2. 背诵《出师表》前两段。",
+    "dictation": "默写任务。\n例如：\napple, banana, orange",
+    "show_dictation": false
+}
