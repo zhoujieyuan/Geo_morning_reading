@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>早读任务板</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: #333; }
+        .container { display: flex; gap: 20px; max-width: 1200px; margin: 0 auto; flex-wrap: wrap;}
+        .box { flex: 1; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); min-width: 300px; min-height: 400px;}
+        .title { font-size: 1.5em; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; font-weight: bold; }
+        .content { font-size: 1.3em; line-height: 1.6; white-space: pre-wrap; color: #444; }
+        
+        /* 左边颜色 */
+        .left .title { color: #007bff; }
+        /* 右边颜色 */
+        .right .title { color: #dc3545; }
+        
+        /* 锁定状态 */
+        .locked { display: flex; align-items: center; justify-content: center; height: 300px; background: #fafafa; color: #999; border: 2px dashed #ddd; font-style: italic; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <h1>📅 今日早读任务</h1>
+
+    <div class="container">
+        <!-- 左侧：早读 -->
+        <div class="box left">
+            <div class="title">📖 早读任务</div>
+            <div id="reading-content" class="content">加载中...</div>
+        </div>
+
+        <!-- 右侧：默写 -->
+        <div class="box right">
+            <div class="title">✍️ 默写任务</div>
+            <!-- 开放时显示这个 -->
+            <div id="dictation-content" class="content hidden"></div>
+            <!-- 未开放时显示这个 -->
+            <div id="lock-msg" class="locked">⛔ 任务尚未开启，请专心早读</div>
+        </div>
+    </div>
+
+    <script>
+        // 定义获取数据的函数
+        function loadTasks() {
+            // 加一个时间戳 ?t=... 防止手机浏览器缓存旧数据
+            fetch('data.json?t=' + new Date().getTime())
+                .then(response => response.json())
+                .then(data => {
+                    // 1. 更新早读
+                    document.getElementById('reading-content').innerText = data.reading;
+
+                    // 2. 更新默写状态
+                    const dictationDiv = document.getElementById('dictation-content');
+                    const lockMsg = document.getElementById('lock-msg');
+
+                    if (data.show_dictation === true) {
+                        // 如果老师开启了默写
+                        dictationDiv.innerText = data.dictation;
+                        dictationDiv.classList.remove('hidden');
+                        lockMsg.classList.add('hidden');
+                    } else {
+                        // 如果老师关闭了默写
+                        dictationDiv.classList.add('hidden');
+                        lockMsg.classList.remove('hidden');
+                    }
+                })
+                .catch(err => console.log('等待网络连接...'));
+        }
+
+        // 页面打开时加载一次
+        loadTasks();
+
+        // 每 5 秒自动刷新一次，检查老师有没有更新
+        setInterval(loadTasks, 5000);
+    </script>
+</body>
+</html>
