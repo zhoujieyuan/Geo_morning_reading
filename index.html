@@ -5,80 +5,151 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>早读任务板</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f4f9; padding: 20px; margin: 0; }
-        .container { display: flex; gap: 20px; max-width: 1400px; margin: 0 auto; height: 90vh; }
-        .box { flex: 1; background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
-        h2 { border-bottom: 2px solid #eee; padding-bottom: 15px; margin-top: 0; }
-        .content { font-size: 1.6em; line-height: 1.6; white-space: pre-wrap; color: #333; flex: 1; overflow-y: auto; }
-        
-        .left h2 { color: #007bff; border-color: #007bff; }
-        .right h2 { color: #dc3545; border-color: #dc3545; }
+        /* 全局设置 */
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+            background-color: #f0f2f5;
+            /* 开启磁吸滚动效果 */
+            scroll-snap-type: y mandatory;
+            scroll-behavior: smooth;
+        }
 
-        .locked-area { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #fafafa; border: 2px dashed #ddd; color: #888; }
-        .timer { font-size: 2.5em; font-weight: bold; color: #dc3545; margin: 10px 0; font-variant-numeric: tabular-nums; }
-        .server-time-tag { background: #eee; padding: 2px 8px; border-radius: 4px; font-size: 0.6em; color: #666; vertical-align: middle; margin-left: 10px; }
+        /* 每一屏的样式 */
+        .section {
+            height: 100vh; /* 强制高度为屏幕的 100% */
+            width: 100%;
+            box-sizing: border-box;
+            padding: 40px 60px;
+            scroll-snap-align: start; /* 滚动时自动对齐顶部 */
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 第一屏：早读 (浅蓝背景) */
+        .section-reading {
+            background-color: #fff;
+            border-bottom: 5px solid #007bff;
+        }
+
+        /* 第二屏：默写 (浅红背景) */
+        .section-dictation {
+            background-color: #fff;
+            border-top: 5px solid #dc3545;
+        }
+
+        /* 标题样式 */
+        h2 {
+            font-size: 2.5em; /* 标题更大 */
+            margin: 0 0 30px 0;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .section-reading h2 { color: #007bff; border-color: #007bff; }
+        .section-dictation h2 { color: #dc3545; border-color: #dc3545; }
+
+        /* 内容区域样式 */
+        .content {
+            font-size: 2em; /* 正文字号极大，方便后排看清 */
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap; /* 保留换行符 */
+            flex: 1; /* 占满剩余空间 */
+            overflow-y: auto; /* 如果内容实在太多，允许内部滚动 */
+        }
+
+        /* 锁定状态样式 */
+        .locked-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background: #fafafa;
+            border: 4px dashed #ddd;
+            border-radius: 20px;
+            color: #888;
+        }
+        .timer { font-size: 5em; font-weight: bold; color: #dc3545; margin: 20px 0; font-variant-numeric: tabular-nums; }
+        
+        .server-time-tag { font-size: 0.4em; background: #eee; padding: 5px 15px; border-radius: 20px; vertical-align: middle; color: #666; font-weight: normal; margin-left: 20px; }
         .hidden { display: none !important; }
+
+        /* 向下箭头的提示动画 */
+        .arrow-down {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 2em;
+            color: #ccc;
+            animation: bounce 2s infinite;
+            cursor: pointer;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);}
+            40% {transform: translateX(-50%) translateY(-10px);}
+            60% {transform: translateX(-50%) translateY(-5px);}
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <!-- 早读区 -->
-        <div class="box left">
-            <h2>📖 早读任务</h2>
-            <div id="reading" class="content">正在连接服务器...</div>
+    <!-- 第一屏：早读任务 -->
+    <div class="section section-reading">
+        <h2>📖 早读任务</h2>
+        <div id="reading" class="content">
+            正在连接服务器获取任务...
         </div>
+        <!-- 提示往下滚动的箭头 -->
+        <div class="arrow-down" onclick="window.scrollTo(0, window.innerHeight)">⬇️ 默写在下面</div>
+    </div>
 
-        <!-- 默写区 -->
-        <div class="box right">
-            <h2>
-                ✍️ 默写任务 
-                <span class="server-time-tag">🕒 网络时间管控中</span>
-            </h2>
-            
-            <div id="dictation" class="content hidden"></div>
+    <!-- 第二屏：默写任务 -->
+    <div class="section section-dictation">
+        <h2>
+            ✍️ 默写任务 
+            <span class="server-time-tag">🕒 网络时间自动管控</span>
+        </h2>
 
-            <div id="lock" class="locked-area">
-                <span>🔒 默写任务锁定中</span>
-                <div id="status-text" class="timer">--:--</div>
-                <div style="font-size: 0.9em">将在 <span id="target-time">--:--</span> 自动开启</div>
-                <div style="font-size: 0.8em; color: #aaa; margin-top: 5px;">(修改本机时间无效)</div>
-            </div>
+        <!-- 默写内容 -->
+        <div id="dictation" class="content hidden"></div>
+
+        <!-- 锁定提示 -->
+        <div id="lock" class="locked-area">
+            <span style="font-size: 2em;">🔒 任务锁定中</span>
+            <div id="status-text" class="timer">--:--</div>
+            <div style="font-size: 1.2em">将在 <span id="target-time" style="font-weight:bold; color:#333">--:--</span> 自动开启</div>
+            <div style="font-size: 1em; color: #aaa; margin-top: 10px;">(修改本机时间无效)</div>
         </div>
     </div>
 
     <script>
+        // 保持之前的防作弊逻辑完全不变
         function loadTask() {
-            // 请求 GitHub 文件
             fetch('data.json?t=' + new Date().getTime())
                 .then(response => {
-                    // === 核心防作弊逻辑 ===
-                    // 不获取本地 new Date()，而是获取 GitHub 响应头里的 'Date'
-                    // 这个时间是 GitHub 服务器的时间 (GMT标准时间)
                     const serverDateStr = response.headers.get('Date');
                     if (!serverDateStr) throw new Error("无法获取服务器时间");
-                    
                     const serverTime = new Date(serverDateStr);
                     return response.json().then(data => ({ data, serverTime }));
                 })
                 .then(({ data, serverTime }) => {
-                    // 1. 更新早读
                     document.getElementById('reading').innerText = data.reading;
                     document.getElementById('target-time').innerText = data.open_time;
-
-                    // 2. 检查时间 (传入服务器时间)
                     checkTime(data, serverTime);
                 })
                 .catch(err => console.error("加载中...", err));
         }
 
         function checkTime(data, serverTime) {
-            // 将 GitHub 的 GMT 时间转换为 北京时间 (GMT+8)
-            // 获取 UTC 的小时并 +8
             let beijingHours = serverTime.getUTCHours() + 8;
             if (beijingHours >= 24) beijingHours -= 24;
             
-            // 补零操作，拼成 "08:30" 这种格式
             const hh = beijingHours.toString().padStart(2, '0');
             const mm = serverTime.getUTCMinutes().toString().padStart(2, '0');
             const currentServerHM = `${hh}:${mm}`;
@@ -87,7 +158,6 @@
             const lockDiv = document.getElementById('lock');
             const statusText = document.getElementById('status-text');
 
-            // 比较：服务器时间 >= 设定时间
             if (currentServerHM >= data.open_time) {
                 dictationDiv.innerText = data.dictation;
                 dictationDiv.classList.remove('hidden');
@@ -95,18 +165,12 @@
             } else {
                 dictationDiv.classList.add('hidden');
                 lockDiv.classList.remove('hidden');
-                // 显示当前服务器时间
-                statusText.innerText = `当前服务器时间 ${currentServerHM}`;
+                statusText.innerText = `当前 ${currentServerHM}`;
             }
         }
 
-        // 首次运行
         loadTask();
-
-        // 每 5 秒向 GitHub 询问一次时间
-        // 既然要防作弊，就必须频繁问服务器，而不能依赖本地倒计时
         setInterval(loadTask, 5000);
-
     </script>
 </body>
 </html>
