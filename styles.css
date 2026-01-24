@@ -1,0 +1,128 @@
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    background-color: #f0f2f5;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    font-weight: bold;
+}
+
+
+.section {
+    height: 100vh;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 40px 60px;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+
+.section-reading {
+    background-color: #fff;
+    border-bottom: 5px solid #007bff;
+}
+
+
+.section-dictation {
+    background-color: #fff;
+    border-top: 5px solid #dc3545;
+}
+
+
+h2 {
+    font-size: 2.5em;
+    margin: 0 0 30px 0;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #eee;
+}
+
+
+.section-reading h2 {
+    color: #007bff;
+    border-color: #007bff;
+}
+
+
+.section-dictation h2 {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+
+.content {
+    font-size: 2em;
+    line-height: 1.6;
+    color: #333;
+    white-space: pre-wrap;
+    flex: 1;
+    overflow-y: auto;
+    font-weight: bold;
+}
+
+
+.locked-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: #fafafa;
+    border: 4px dashed #ddd;
+    border-radius: 20px;
+    color: #888;
+}
+
+
+.timer {
+    font-size: 4em;
+    font-weight: bold;
+    color: #dc3545;
+    margin: 20px 0;
+}
+
+
+.server-time-tag {
+    font-size: 0.4em;
+    background: #eee;
+    padding: 5px 15px;
+    border-radius: 20px;
+    vertical-align: middle;
+    color: #666;
+    font-weight: normal;
+    margin-left: 20px;
+}
+
+
+.hidden {
+    display: none !important;
+}
+
+/* Arrow down animation */
+.arrow-down {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 2em;
+    color: #ccc;
+    animation: bounce 2s infinite;
+    cursor: pointer;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateX(-50%) translateY(0);
+    }
+    40% {
+        transform: translateX(-50%) translateY(-10px);
+    }
+    60% {
+        transform: translateX(-50%) translateY(-5px);
+    }
+}
