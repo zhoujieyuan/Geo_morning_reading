@@ -61,6 +61,7 @@ h2 {
     white-space: pre-wrap;
     flex: 1;
     overflow-y: auto;
+    font-weight: bold;
 }
 
 
