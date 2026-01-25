@@ -58,11 +58,11 @@
         
         .hidden { display: none !important; }
 
-        /* === 新增：全局加载提示遮罩 === */
+        /* 加载提示遮罩 */
         #global-loading-mask {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: white;
-            z-index: 9999; /* 最顶层 */
+            z-index: 9999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
         .loading-spinner {
@@ -81,7 +81,6 @@
 </head>
 <body>
 
-<!-- 全局加载提示 -->
 <div id="global-loading-mask">
     <div class="loading-spinner"></div>
     <div class="loading-text-main">默写任务正在加载，请稍后...</div>
@@ -89,21 +88,19 @@
 </div>
 
 <div class="slider-container">
-    <!-- 第一屏：早读 -->
     <div class="section">
         <div class="canvas-scaler">
             <div id="reading-content" class="content-layer"></div>
         </div>
-        <!-- 箭头已删除 -->
     </div>
 
-    <!-- 第二屏：默写 -->
     <div class="section">
         <div class="canvas-scaler">
             <div id="dictation-content" class="content-layer hidden"></div>
             <div id="lock" class="locked-mask">
                 <span style="font-size: 3em; font-weight:bold;">🔒 默写未开启</span>
-                <div id="status-text" class="timer">--:--</div>
+                <!-- 这里显示倒计时 -->
+                <div id="status-text" class="timer">--:--:--</div>
                 <div style="font-size: 1.5em; color:#888;">
                     开放时间: <span id="target-time" style="font-weight:bold; color:#333">--</span>
                 </div>
@@ -113,7 +110,6 @@
 </div>
 
 <script>
-    // 缩放逻辑
     function resizeCanvas() {
         const scalers = document.querySelectorAll('.canvas-scaler');
         const screenW = window.innerWidth;
@@ -126,86 +122,96 @@
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas(); 
 
-    // === 核心修改：等待图片加载逻辑 ===
-    let isFirstLoad = true; // 只有第一次打开时显示大遮罩
+    let isFirstLoad = true;
 
     function loadTask() {
         fetch('data.json?t=' + new Date().getTime())
-            .then(res => {
-                const serverDateStr = res.headers.get('Date');
-                const serverTime = serverDateStr ? new Date(serverDateStr) : new Date();
-                return res.json().then(data => ({ data, serverTime }));
-            })
-            .then(({ data, serverTime }) => {
+            .then(res => res.json())
+            .then(data => {
+                // 1. 渲染内容
                 const readingDiv = document.getElementById('reading-content');
                 const dictationDiv = document.getElementById('dictation-content');
-
-                // 只有当内容发生变化，或者第一次加载时，才去渲染
-                // 为了简单稳健，我们每次都更新 HTML，但用 Promise 等待图片
-                readingDiv.innerHTML = data.reading_html || "";
-                dictationDiv.innerHTML = data.dictation_html || "";
+                
+                // 仅当内容有变化才重新赋值HTML，避免闪烁
+                if(readingDiv.innerHTML !== data.reading_html) readingDiv.innerHTML = data.reading_html || "";
+                if(dictationDiv.innerHTML !== data.dictation_html) dictationDiv.innerHTML = data.dictation_html || "";
                 
                 document.getElementById('target-time').innerText = data.open_datetime ? data.open_datetime.replace('T', ' ') : "未设定";
                 
-                // 检查时间逻辑
-                checkTime(data, serverTime);
+                // 2. 将数据保存到全局变量，供定时器检查时间
+                window.currentTaskData = data;
+                
+                // 立即检查一次时间
+                checkTime();
 
-                // === 等待所有图片加载完成 ===
+                // 3. 图片预加载逻辑
                 if (isFirstLoad) {
                     const images = document.querySelectorAll('img');
                     const promises = Array.from(images).map(img => {
                         if (img.complete) return Promise.resolve();
                         return new Promise(resolve => {
                             img.onload = resolve;
-                            img.onerror = resolve; // 即使加载失败也继续，防止卡死
+                            img.onerror = resolve;
                         });
                     });
-
-                    // 所有图片加载完后，隐藏遮罩
                     Promise.all(promises).then(() => {
                         const mask = document.getElementById('global-loading-mask');
                         if(mask) mask.style.display = 'none';
                         isFirstLoad = false;
                     });
-                    
-                    // 设置一个超时兜底，如果10秒还没好（比如网断了），强制移除遮罩
                     setTimeout(() => {
                         const mask = document.getElementById('global-loading-mask');
                         if(mask) mask.style.display = 'none';
-                    }, 10000);
+                    }, 8000);
                 }
             })
             .catch(err => console.error(err));
     }
 
-    function checkTime(data, serverTime) {
-        if (!data.open_datetime) return;
-        let beijingTime = new Date(serverTime.getTime() + 8 * 60 * 60 * 1000);
+    // === 核心修改：使用本机时间 ===
+    function checkTime() {
+        const data = window.currentTaskData;
+        if (!data || !data.open_datetime) return;
+
+        // 获取本机当前时间
+        const now = new Date();
         const pad = n => n.toString().padStart(2, '0');
+        
+        // 格式化当前时间为 YYYY-MM-DDTHH:mm
         const currentStr = 
-            beijingTime.getUTCFullYear() + "-" + 
-            pad(beijingTime.getUTCMonth() + 1) + "-" + 
-            pad(beijingTime.getUTCDate()) + "T" + 
-            pad(beijingTime.getUTCHours()) + ":" + 
-            pad(beijingTime.getUTCMinutes());
+            now.getFullYear() + "-" + 
+            pad(now.getMonth() + 1) + "-" + 
+            pad(now.getDate()) + "T" + 
+            pad(now.getHours()) + ":" + 
+            pad(now.getMinutes());
+
+        // 用于显示的秒数时间
+        const displayTime = pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
 
         const dictationDiv = document.getElementById('dictation-content');
         const lockDiv = document.getElementById('lock');
         const statusText = document.getElementById('status-text');
 
+        // 直接比较字符串
         if (currentStr >= data.open_datetime) {
             dictationDiv.classList.remove('hidden');
             lockDiv.classList.add('hidden');
         } else {
             dictationDiv.classList.add('hidden');
             lockDiv.classList.remove('hidden');
-            statusText.innerText = currentStr.replace('T', ' '); 
+            // 显示带秒数的时间，让学生看到时间在走
+            statusText.innerText = displayTime; 
         }
     }
 
     loadTask();
-    // 之后每5秒静默刷新（不再显示遮罩）
-    setInterval(loadTask, 5000);
+    
+    // 网络请求：每10秒检查一次有没有新任务（不用太频繁，减轻GitHub压力）
+    setInterval(loadTask, 10000);
+
+    // 本地时间检查：每1秒检查一次（保证倒计时精准）
+    setInterval(checkTime, 1000);
+
 </script>
 </body>
 </html>
