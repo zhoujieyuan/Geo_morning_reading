@@ -5,145 +5,125 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>早读任务板</title>
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; background-color: #333; overflow: hidden; font-family: 'Segoe UI', sans-serif;}
+        html, body { margin: 0; padding: 0; height: 100%; background-color: #222; overflow: hidden; font-family: 'Segoe UI', sans-serif;}
 
         /* 滑动容器 */
         .slider-container {
-            width: 100vw;
-            height: 100vh;
+            width: 100vw; height: 100vh;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scroll-behavior: smooth;
+            /* 隐藏滚动条 */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
         }
+        .slider-container::-webkit-scrollbar { display: none; }
 
         /* 每一屏 */
         .section {
-            width: 100vw;
-            height: 100vh;
+            width: 100vw; height: 100vh;
             scroll-snap-align: start;
             position: relative;
-            background: #fff;
-            overflow: hidden; /* 禁止出现滚动条，保持画布完整 */
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background: #000; /* 背景黑，突出画布 */
+            display: flex; justify-content: center; align-items: center;
         }
 
-        /* 画布容器 (Scaler) */
-        /* 我们设计的是 1000x562，这里通过 CSS Transform 放大到全屏 */
+        /* 画布容器 (Scaler) - 纯净的 16:9 容器 */
         .canvas-scaler {
-            width: 1000px;
-            height: 562px;
+            width: 1000px; height: 562px;
             position: relative;
-            background-color: white;
-            /* 调试用边框，实际可去掉 */
-            /* border: 1px dashed #eee; */
-            box-shadow: 0 0 50px rgba(0,0,0,0.1);
+            background-color: white; /* 画布背景白 */
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            overflow: hidden; 
         }
 
-        /* 顶部标题栏 (悬浮在画布之上) */
-        .header-bar {
-            position: absolute;
-            top: 0; left: 0; width: 100%;
-            height: 60px;
-            z-index: 100;
-            display: flex;
-            align-items: center;
-            padding: 0 30px;
-            background: rgba(255,255,255,0.9);
-            border-bottom: 2px solid #eee;
-            box-sizing: border-box;
-        }
-        .header-title { font-size: 24px; font-weight: bold; margin: 0; }
-        .blue-theme { border-bottom-color: #007bff; color: #007bff; }
-        .red-theme { border-bottom-color: #dc3545; color: #dc3545; }
-
-        /* 内容渲染区 */
+        /* 内容渲染区 - 现在占满 100% 空间 */
         .content-layer {
             position: absolute;
-            top: 60px; /* 让出标题位置 */
-            left: 0;
-            width: 1000px;
-            height: 502px; /* 562 - 60 */
-            position: relative;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 10;
         }
 
-        /* 锁定遮罩 */
+        /* 锁定遮罩 (默写未开放时显示) */
         .locked-mask {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.98);
+            background: #f8f9fa; /* 浅灰背景 */
             z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            color: #888;
+            color: #555;
+            border: 5px solid #dc3545; /* 红色边框提示锁定 */
+            box-sizing: border-box;
         }
-        .timer { font-size: 5em; font-weight: bold; color: #dc3545; margin: 10px 0; font-family: monospace; }
+        .timer { font-size: 6em; font-weight: bold; color: #dc3545; margin: 20px 0; font-family: monospace; }
         
-        .arrow-down { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 2em; color: #ccc; animation: bounce 2s infinite; cursor: pointer; z-index: 999; }
+        /* 翻页箭头 */
+        .arrow-down { 
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+            font-size: 3em; color: rgba(255,255,255,0.5); 
+            animation: bounce 2s infinite; cursor: pointer; z-index: 999; 
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
         @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);} 40% {transform: translateX(-50%) translateY(-10px);} 60% {transform: translateX(-50%) translateY(-5px);} }
+        
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="slider-container">
-    <!-- 第一屏：早读 -->
+    <!-- 第一屏：早读 (纯净) -->
     <div class="section">
-        <div class="canvas-scaler" id="scaler-1">
-            <div class="header-bar blue-theme">
-                <span class="header-title">📖 早读任务</span>
-            </div>
+        <div class="canvas-scaler">
             <div id="reading-content" class="content-layer">
-                <!-- 这里的 HTML 内容是绝对定位的，位置固定 -->
-                <div style="padding:50px; text-align:center; color:#999;">正在加载设计图...</div>
+                <!-- 这里会显示你在教师端设计的画面 -->
             </div>
         </div>
-        <div class="arrow-down" onclick="document.querySelector('.slider-container').scrollBy(0, window.innerHeight)">⬇️ 默写在下面</div>
+        <div class="arrow-down" onclick="document.querySelector('.slider-container').scrollBy(0, window.innerHeight)">⬇️</div>
     </div>
 
-    <!-- 第二屏：默写 -->
+    <!-- 第二屏：默写 (纯净+锁定) -->
     <div class="section">
-        <div class="canvas-scaler" id="scaler-2">
-            <div class="header-bar red-theme">
-                <span class="header-title">✍️ 默写任务</span>
-                <span style="font-size:0.6em; background:#eee; padding:2px 10px; border-radius:10px; margin-left:15px; color:#666;">🕒 网络管控</span>
-            </div>
+        <div class="canvas-scaler">
             
+            <!-- 默写内容 -->
             <div id="dictation-content" class="content-layer hidden"></div>
 
-            <!-- 锁定遮罩 -->
+            <!-- 锁定遮罩 (时间没到时盖在上面) -->
             <div id="lock" class="locked-mask">
-                <span style="font-size: 2em;">🔒 任务锁定中</span>
+                <span style="font-size: 3em; font-weight:bold;">🔒 默写未开启</span>
                 <div id="status-text" class="timer">--:--</div>
-                <div style="font-size: 1.2em">开放时间: <span id="target-time" style="font-weight:bold; color:#333">--</span></div>
+                <div style="font-size: 1.5em; color:#888;">
+                    开放时间: <span id="target-time" style="font-weight:bold; color:#333">--</span>
+                </div>
             </div>
+
         </div>
     </div>
 </div>
 
 <script>
-    // === 核心逻辑：自动缩放画布以适应屏幕 ===
+    // === 自动缩放画布 ===
     function resizeCanvas() {
         const scalers = document.querySelectorAll('.canvas-scaler');
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
         
-        // 目标是 1000x562
+        // 目标尺寸
         const targetW = 1000;
         const targetH = 562;
 
-        // 计算缩放比例：我们要让画布尽可能大，填满屏幕，但保持比例
         const scaleX = screenW / targetW;
         const scaleY = screenH / targetH;
-        const scale = Math.min(scaleX, scaleY); // 选较小的那个比例，保证内容显示全
+        const scale = Math.min(scaleX, scaleY); 
 
         scalers.forEach(el => {
             el.style.transform = `scale(${scale})`;
         });
     }
 
-    // 窗口大小改变时自动重算
     window.addEventListener('resize', resizeCanvas);
-    resizeCanvas(); // 初始化执行一次
+    resizeCanvas(); 
 
     // === 数据逻辑 ===
     function loadTask() {
@@ -154,7 +134,6 @@
                 return res.json().then(data => ({ data, serverTime }));
             })
             .then(({ data, serverTime }) => {
-                // 渲染 HTML 内容 (里面包含了绝对定位的 style)
                 if(data.reading_html) document.getElementById('reading-content').innerHTML = data.reading_html;
                 document.getElementById('target-time').innerText = data.open_datetime ? data.open_datetime.replace('T', ' ') : "未设定";
                 checkTime(data, serverTime);
@@ -178,10 +157,12 @@
         const statusText = document.getElementById('status-text');
 
         if (currentStr >= data.open_datetime) {
+            // 时间到：显示内容，隐藏锁
             if(data.dictation_html) dictationDiv.innerHTML = data.dictation_html;
             dictationDiv.classList.remove('hidden');
             lockDiv.classList.add('hidden');
         } else {
+            // 时间未到：隐藏内容，显示锁
             dictationDiv.classList.add('hidden');
             lockDiv.classList.remove('hidden');
             statusText.innerText = currentStr.replace('T', ' '); 
