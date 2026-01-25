@@ -4,17 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>早读任务板</title>
-    <!-- 引入 Bootstrap 样式，保证排版和教师端一致 -->
-    <link href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
+    <!-- 换用国内 BootCDN 源，确保加载速度 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
     <style>
         html, body { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background-color: #f0f2f5; scroll-snap-type: y mandatory; scroll-behavior: smooth; }
         
-        /* 每一屏的样式 */
-        .section { 
-            height: 100vh; width: 100%; box-sizing: border-box; padding: 20px 50px; 
-            scroll-snap-align: start; display: flex; flex-direction: column; position: relative; 
-        }
-        
+        .section { height: 100vh; width: 100%; box-sizing: border-box; padding: 20px 50px; scroll-snap-align: start; display: flex; flex-direction: column; position: relative; }
         .section-reading { background-color: #fff; border-bottom: 5px solid #007bff; }
         .section-dictation { background-color: #fff; border-top: 5px solid #dc3545; }
         
@@ -22,26 +17,13 @@
         .section-reading h2 { color: #007bff; border-color: #007bff; }
         .section-dictation h2 { color: #dc3545; border-color: #dc3545; }
 
-        /* 内容显示区：这里是核心 */
-        .content-area { 
-            flex: 1; 
-            overflow-y: auto; 
-            font-size: 1.6em; /* 默认字号加大 */
-            line-height: 1.6;
-            color: #333;
-        }
-
-        /* 修复浮动元素可能导致的高度塌陷 */
+        .content-area { flex: 1; overflow-y: auto; font-size: 1.6em; line-height: 1.6; color: #333; }
+        /* 清除浮动，保证图文环绕正常 */
         .content-area::after { content: ""; display: table; clear: both; }
 
-        /* 图片样式优化 */
-        .content-area img {
-            max-width: 100% !important; /* 防止图片撑爆屏幕 */
-            height: auto !important;
-            margin: 10px;
-        }
-
-        /* 锁定区样式 */
+        /* 图片样式：允许左浮动和右浮动 */
+        .content-area img { max-width: 50% !important; height: auto !important; margin: 15px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
         .locked-area { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #fafafa; border: 4px dashed #ddd; border-radius: 20px; color: #888; }
         .timer { font-size: 4em; font-weight: bold; color: #dc3545; margin: 20px 0; font-family: monospace;}
         .server-time-tag { font-size: 0.4em; background: #eee; padding: 5px 15px; border-radius: 20px; vertical-align: middle; color: #666; font-weight: normal; margin-left: 20px; }
@@ -53,50 +35,50 @@
 </head>
 <body>
 
-    <!-- 第一屏：早读 -->
+    <!-- 第一屏 -->
     <div class="section section-reading">
         <h2>📖 早读任务</h2>
-        <div id="reading" class="content-area">
-            正在加载图文任务...
-        </div>
+        <div id="reading" class="content-area">正在连接服务器...</div>
         <div class="arrow-down" onclick="window.scrollTo(0, window.innerHeight)">⬇️ 默写在下面</div>
     </div>
 
-    <!-- 第二屏：默写 -->
+    <!-- 第二屏 -->
     <div class="section section-dictation">
         <h2>
             ✍️ 默写任务 
             <span class="server-time-tag">🕒 网络时间管控</span>
         </h2>
-        
         <div id="dictation" class="content-area hidden"></div>
-
         <div id="lock" class="locked-area">
             <span style="font-size: 2em;">🔒 任务锁定中</span>
             <div id="status-text" class="timer">--/-- --:--</div>
-            <div style="font-size: 1.2em">
-                开放时间: <span id="target-time" style="font-weight:bold; color:#333">--</span>
-            </div>
+            <div style="font-size: 1.2em">开放时间: <span id="target-time" style="font-weight:bold; color:#333">--</span></div>
         </div>
     </div>
 
     <script>
-        // === 逻辑部分完全保持不变 ===
         function loadTask() {
             fetch('data.json?t=' + new Date().getTime())
                 .then(response => {
+                    if (!response.ok) throw new Error("网络错误");
                     const serverDateStr = response.headers.get('Date');
-                    if (!serverDateStr) throw new Error("无时间");
-                    const serverTime = new Date(serverDateStr);
+                    const serverTime = serverDateStr ? new Date(serverDateStr) : new Date();
                     return response.json().then(data => ({ data, serverTime }));
                 })
                 .then(({ data, serverTime }) => {
-                    // 使用 innerHTML 渲染包含样式的 HTML
+                    // 如果 data 是空的或者格式不对，显示提示
+                    if (!data.reading) {
+                        document.getElementById('reading').innerHTML = "暂无任务内容";
+                        return;
+                    }
                     document.getElementById('reading').innerHTML = data.reading;
                     document.getElementById('target-time').innerText = data.open_datetime ? data.open_datetime.replace('T', ' ') : "未设定";
                     checkTime(data, serverTime);
                 })
-                .catch(err => console.error("Loading...", err));
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('reading').innerText = "加载失败，请检查网络或刷新页面。";
+                });
         }
 
         function checkTime(data, serverTime) {
