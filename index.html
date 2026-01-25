@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>早读任务板</title>
     <style>
-        /* 背景改为纯白 */
+        /* 基础设置 */
         html, body { margin: 0; padding: 0; height: 100%; background-color: #ffffff; overflow: hidden; font-family: 'Segoe UI', sans-serif;}
 
         /* 滑动容器 */
@@ -19,7 +19,7 @@
         }
         .slider-container::-webkit-scrollbar { display: none; }
 
-        /* 每一屏 - 背景改为纯白 */
+        /* 每一屏 */
         .section {
             width: 100vw; height: 100vh;
             scroll-snap-align: start;
@@ -33,15 +33,13 @@
             width: 1000px; height: 562px;
             position: relative;
             background-color: white;
-            /* 只有非常微弱的阴影，用于区分边界 */
             box-shadow: 0 0 20px rgba(0,0,0,0.05);
             overflow: hidden; 
         }
 
-        /* 内容渲染区 */
+        /* 内容层 */
         .content-layer {
-            position: absolute;
-            top: 0; left: 0;
+            position: absolute; top: 0; left: 0;
             width: 100%; height: 100%;
             z-index: 10;
         }
@@ -49,30 +47,46 @@
         /* 锁定遮罩 */
         .locked-mask {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #ffffff; /* 纯白背景 */
+            background: #ffffff;
             z-index: 200;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             color: #555;
-            /* 红色边框提示锁定 */
             border: 4px solid #dc3545; 
             box-sizing: border-box;
         }
         .timer { font-size: 6em; font-weight: bold; color: #dc3545; margin: 20px 0; font-family: monospace; }
         
-        /* 翻页箭头 - 颜色改为深灰，适应白背景 */
-        .arrow-down { 
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-            font-size: 3em; color: #ccc; /* 灰色 */
-            animation: bounce 2s infinite; cursor: pointer; z-index: 999; 
-        }
-        .arrow-down:hover { color: #888; }
-
-        @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);} 40% {transform: translateX(-50%) translateY(-10px);} 60% {transform: translateX(-50%) translateY(-5px);} }
-        
         .hidden { display: none !important; }
+
+        /* === 新增：全局加载提示遮罩 === */
+        #global-loading-mask {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: white;
+            z-index: 9999; /* 最顶层 */
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .loading-spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #007bff;
+            border-radius: 50%;
+            width: 60px; height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        .loading-text-main { font-size: 1.5em; font-weight: bold; color: #333; margin-bottom: 10px; }
+        .loading-text-sub { font-size: 1.2em; color: #888; }
+        
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
+<!-- 全局加载提示 -->
+<div id="global-loading-mask">
+    <div class="loading-spinner"></div>
+    <div class="loading-text-main">默写任务正在加载，请稍后...</div>
+    <div class="loading-text-sub">不是系统问题，正在下载图片资源</div>
+</div>
 
 <div class="slider-container">
     <!-- 第一屏：早读 -->
@@ -80,15 +94,13 @@
         <div class="canvas-scaler">
             <div id="reading-content" class="content-layer"></div>
         </div>
-        <div class="arrow-down" onclick="document.querySelector('.slider-container').scrollBy(0, window.innerHeight)">⬇️</div>
+        <!-- 箭头已删除 -->
     </div>
 
     <!-- 第二屏：默写 -->
     <div class="section">
         <div class="canvas-scaler">
-            
             <div id="dictation-content" class="content-layer hidden"></div>
-
             <div id="lock" class="locked-mask">
                 <span style="font-size: 3em; font-weight:bold;">🔒 默写未开启</span>
                 <div id="status-text" class="timer">--:--</div>
@@ -96,31 +108,26 @@
                     开放时间: <span id="target-time" style="font-weight:bold; color:#333">--</span>
                 </div>
             </div>
-
         </div>
     </div>
 </div>
 
 <script>
+    // 缩放逻辑
     function resizeCanvas() {
         const scalers = document.querySelectorAll('.canvas-scaler');
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
-        
         const targetW = 1000;
         const targetH = 562;
-
-        const scaleX = screenW / targetW;
-        const scaleY = screenH / targetH;
-        const scale = Math.min(scaleX, scaleY); 
-
-        scalers.forEach(el => {
-            el.style.transform = `scale(${scale})`;
-        });
+        const scale = Math.min(screenW / targetW, screenH / targetH); 
+        scalers.forEach(el => { el.style.transform = `scale(${scale})`; });
     }
-
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas(); 
+
+    // === 核心修改：等待图片加载逻辑 ===
+    let isFirstLoad = true; // 只有第一次打开时显示大遮罩
 
     function loadTask() {
         fetch('data.json?t=' + new Date().getTime())
@@ -130,9 +137,43 @@
                 return res.json().then(data => ({ data, serverTime }));
             })
             .then(({ data, serverTime }) => {
-                if(data.reading_html) document.getElementById('reading-content').innerHTML = data.reading_html;
+                const readingDiv = document.getElementById('reading-content');
+                const dictationDiv = document.getElementById('dictation-content');
+
+                // 只有当内容发生变化，或者第一次加载时，才去渲染
+                // 为了简单稳健，我们每次都更新 HTML，但用 Promise 等待图片
+                readingDiv.innerHTML = data.reading_html || "";
+                dictationDiv.innerHTML = data.dictation_html || "";
+                
                 document.getElementById('target-time').innerText = data.open_datetime ? data.open_datetime.replace('T', ' ') : "未设定";
+                
+                // 检查时间逻辑
                 checkTime(data, serverTime);
+
+                // === 等待所有图片加载完成 ===
+                if (isFirstLoad) {
+                    const images = document.querySelectorAll('img');
+                    const promises = Array.from(images).map(img => {
+                        if (img.complete) return Promise.resolve();
+                        return new Promise(resolve => {
+                            img.onload = resolve;
+                            img.onerror = resolve; // 即使加载失败也继续，防止卡死
+                        });
+                    });
+
+                    // 所有图片加载完后，隐藏遮罩
+                    Promise.all(promises).then(() => {
+                        const mask = document.getElementById('global-loading-mask');
+                        if(mask) mask.style.display = 'none';
+                        isFirstLoad = false;
+                    });
+                    
+                    // 设置一个超时兜底，如果10秒还没好（比如网断了），强制移除遮罩
+                    setTimeout(() => {
+                        const mask = document.getElementById('global-loading-mask');
+                        if(mask) mask.style.display = 'none';
+                    }, 10000);
+                }
             })
             .catch(err => console.error(err));
     }
@@ -153,7 +194,6 @@
         const statusText = document.getElementById('status-text');
 
         if (currentStr >= data.open_datetime) {
-            if(data.dictation_html) dictationDiv.innerHTML = data.dictation_html;
             dictationDiv.classList.remove('hidden');
             lockDiv.classList.add('hidden');
         } else {
@@ -164,6 +204,7 @@
     }
 
     loadTask();
+    // 之后每5秒静默刷新（不再显示遮罩）
     setInterval(loadTask, 5000);
 </script>
 </body>
