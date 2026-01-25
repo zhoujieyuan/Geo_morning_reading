@@ -4,21 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>早读任务板</title>
+    <!-- 引入 Quill 样式，保证格式还原 -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
     <style>
-        /* 保持之前的全屏滚动样式 */
         html, body { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background-color: #f0f2f5; scroll-snap-type: y mandatory; scroll-behavior: smooth; }
-        .section { height: 100vh; width: 100%; box-sizing: border-box; padding: 40px 60px; scroll-snap-align: start; display: flex; flex-direction: column; position: relative; }
+        .section { height: 100vh; width: 100%; box-sizing: border-box; padding: 20px 40px; scroll-snap-align: start; display: flex; flex-direction: column; position: relative; }
+        
         .section-reading { background-color: #fff; border-bottom: 5px solid #007bff; }
         .section-dictation { background-color: #fff; border-top: 5px solid #dc3545; }
-        h2 { font-size: 2.5em; margin: 0 0 30px 0; padding-bottom: 20px; border-bottom: 2px solid #eee; }
+        
+        h2 { font-size: 2em; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 2px solid #eee; flex-shrink: 0; }
         .section-reading h2 { color: #007bff; border-color: #007bff; }
         .section-dictation h2 { color: #dc3545; border-color: #dc3545; }
-        .content { font-size: 2em; line-height: 1.6; color: #333; white-space: pre-wrap; flex: 1; overflow-y: auto; }
+
+        /* 内容区域样式调整 */
+        /* ql-editor 是 Quill 的标准类名，这里用来继承样式 */
+        .content-area { 
+            flex: 1; 
+            overflow-y: auto; 
+            font-size: 1.5em; /* 默认大字号 */
+            padding: 10px;
+        }
+        
+        /* 针对图片的样式优化，防止图片过大撑破屏幕 */
+        .content-area img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 10px 0;
+        }
+
         .locked-area { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #fafafa; border: 4px dashed #ddd; border-radius: 20px; color: #888; }
         .timer { font-size: 4em; font-weight: bold; color: #dc3545; margin: 20px 0; }
         .server-time-tag { font-size: 0.4em; background: #eee; padding: 5px 15px; border-radius: 20px; vertical-align: middle; color: #666; font-weight: normal; margin-left: 20px; }
         .hidden { display: none !important; }
-        .arrow-down { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 2em; color: #ccc; animation: bounce 2s infinite; cursor: pointer; }
+        .arrow-down { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 2em; color: #ccc; animation: bounce 2s infinite; cursor: pointer; z-index: 10;}
         @keyframes bounce { 0%, 20%, 50%, 80%, 100% {transform: translateX(-50%) translateY(0);} 40% {transform: translateX(-50%) translateY(-10px);} 60% {transform: translateX(-50%) translateY(-5px);} }
     </style>
 </head>
@@ -27,7 +47,10 @@
     <!-- 第一屏 -->
     <div class="section section-reading">
         <h2>📖 早读任务</h2>
-        <div id="reading" class="content">正在连接服务器获取任务...</div>
+        <!-- 添加 ql-editor 和 ql-snow 类，确保富文本样式生效 -->
+        <div id="reading" class="content-area ql-editor ql-snow">
+            正在连接服务器...
+        </div>
         <div class="arrow-down" onclick="window.scrollTo(0, window.innerHeight)">⬇️ 默写在下面</div>
     </div>
 
@@ -35,10 +58,10 @@
     <div class="section section-dictation">
         <h2>
             ✍️ 默写任务 
-            <span class="server-time-tag">🕒 网络时间管控中</span>
+            <span class="server-time-tag">🕒 网络时间管控</span>
         </h2>
         
-        <div id="dictation" class="content hidden"></div>
+        <div id="dictation" class="content-area ql-editor ql-snow hidden"></div>
 
         <div id="lock" class="locked-area">
             <span style="font-size: 2em;">🔒 任务锁定中</span>
@@ -46,7 +69,6 @@
             <div style="font-size: 1.2em">
                 开放时间: <span id="target-time" style="font-weight:bold; color:#333">--</span>
             </div>
-            <div style="font-size: 1em; color: #aaa; margin-top: 10px;">(修改本机时间无效)</div>
         </div>
     </div>
 
@@ -60,8 +82,8 @@
                     return response.json().then(data => ({ data, serverTime }));
                 })
                 .then(({ data, serverTime }) => {
-                    document.getElementById('reading').innerText = data.reading;
-                    // 显示目标时间 (把 T 换成 空格，好看点)
+                    // 【关键修改】使用 innerHTML 来渲染富文本（HTML代码）
+                    document.getElementById('reading').innerHTML = data.reading;
                     document.getElementById('target-time').innerText = data.open_datetime ? data.open_datetime.replace('T', ' ') : "未设定";
                     checkTime(data, serverTime);
                 })
@@ -69,14 +91,8 @@
         }
 
         function checkTime(data, serverTime) {
-            if (!data.open_datetime) return; // 如果没设时间，默认锁定
-
-            // 1. 计算【当前服务器的北京时间】字符串
-            // 服务器是 GMT，我们要加 8 小时
+            if (!data.open_datetime) return;
             let beijingTime = new Date(serverTime.getTime() + 8 * 60 * 60 * 1000);
-            
-            // 格式化成 YYYY-MM-DDTHH:mm 这种标准格式，方便字符串比较
-            // 注意：toISOString 会减回 8 小时显示 UTC，所以我们手动拼字符串最稳
             const pad = n => n.toString().padStart(2, '0');
             const currentStr = 
                 beijingTime.getUTCFullYear() + "-" + 
@@ -85,28 +101,25 @@
                 pad(beijingTime.getUTCHours()) + ":" + 
                 pad(beijingTime.getUTCMinutes());
 
-            // 2. 获取【设定的目标时间】字符串
             const targetStr = data.open_datetime;
-
             const dictationDiv = document.getElementById('dictation');
             const lockDiv = document.getElementById('lock');
             const statusText = document.getElementById('status-text');
 
-            // 3. 核心比较：字符串直接比大小 (例如 "2023-10-27T08:00" > "2023-10-26T20:00")
             if (currentStr >= targetStr) {
-                dictationDiv.innerText = data.dictation;
+                // 【关键修改】使用 innerHTML
+                dictationDiv.innerHTML = data.dictation;
                 dictationDiv.classList.remove('hidden');
                 lockDiv.classList.add('hidden');
             } else {
                 dictationDiv.classList.add('hidden');
                 lockDiv.classList.remove('hidden');
-                // 显示当前服务器日期和时间
                 statusText.innerText = currentStr.replace('T', ' '); 
             }
         }
 
         loadTask();
-        setInterval(loadTask, 5000); // 每5秒检查一次
+        setInterval(loadTask, 5000);
     </script>
 </body>
 </html>
